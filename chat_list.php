@@ -10,14 +10,18 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Fetch users for chat
-$query = "SELECT id, name, profile_image FROM users WHERE id != ?";
+// Fetch users for chat with unread message count
+$query = "SELECT u.id, u.name, u.profile_image, 
+                 COUNT(CASE WHEN m.receiver_id = ? AND m.is_read = 0 THEN 1 END) AS unread_count
+          FROM users u
+          LEFT JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
+          WHERE u.id != ?
+          GROUP BY u.id";
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $user_id);
+$stmt->bind_param("ii", $user_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $users = $result->fetch_all(MYSQLI_ASSOC);
-
 ?>
 
 <!DOCTYPE html>
@@ -42,6 +46,7 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
             padding: 10px;
             cursor: pointer;
             transition: background-color 0.3s;
+            position: relative;
         }
         .user:hover {
             background-color: #e9ecef;
@@ -51,6 +56,16 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
             width: 50px;
             height: 50px;
             margin-right: 10px;
+        }
+        .notification-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 7px;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -64,6 +79,9 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
                     <div>
                         <strong><?php echo $user['name']; ?></strong>
                     </div>
+                    <?php if ($user['unread_count'] > 0): ?>
+                        <div class="notification-badge"><?php echo $user['unread_count']; ?></div>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -76,6 +94,11 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
             // Open chat window on user click
             $('.user').click(function() {
                 const userId = $(this).data('user-id');
+                
+                // Mark messages as read when chat is opened
+                $.post('mark_as_read.php', { user_id: userId });
+
+                // Redirect to chat
                 window.location.href = 'chat.php?user_id=' + userId;
             });
         });

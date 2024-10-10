@@ -1,30 +1,35 @@
 <?php
-// fetch_private_messages.php
 session_start();
 include 'config.php';
 
-$user_id = $_SESSION['user_id'];
-$chat_with = $_GET['chat_with'];
-
-$query = "SELECT * FROM messages 
-          WHERE (sender_id = $user_id AND receiver_id = $chat_with) 
-             OR (sender_id = $chat_with AND receiver_id = $user_id)
-          ORDER BY created_at ASC";
-$messages = $conn->query($query);
-
-if ($messages->num_rows > 0) {
-    while ($msg = $messages->fetch_assoc()) {
-        $user_id_msg = $msg['sender_id'];
-        $user_query = "SELECT name FROM users WHERE id = $user_id_msg";
-        $user_result = $conn->query($user_query);
-        $user_data = $user_result->fetch_assoc();
-
-        $message_class = ($user_id == $user_id_msg) ? 'message sent' : 'message received';
-        echo '<div class="' . $message_class . '">';
-        echo '<strong>' . $user_data['name'] . ':</strong> ' . htmlspecialchars($msg['message']);
-        echo '</div>';
-    }
-} else {
-    echo '<p>No messages yet.</p>';
+// Ensure the user is logged in
+if (!isset($_SESSION['user_id']) || !isset($_GET['user_id'])) {
+    header("HTTP/1.0 403 Forbidden");
+    exit();
 }
+
+$user_id = $_SESSION['user_id'];
+$chat_user_id = $_GET['user_id'];
+
+// Fetch chat messages between the two users
+$query = "SELECT * FROM messages 
+          WHERE (sender_id = ? AND receiver_id = ?) 
+          OR (sender_id = ? AND receiver_id = ?) 
+          ORDER BY created_at ASC";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("iiii", $user_id, $chat_user_id, $chat_user_id, $user_id);
+$stmt->execute();
+$messages = $stmt->get_result();
+
+// Generate message HTML
+$messageHtml = '';
+while ($msg = $messages->fetch_assoc()) {
+    $messageHtml .= '<div class="message-wrapper ' . ($msg['sender_id'] == $user_id ? 'sent' : 'received') . '">';
+    $messageHtml .= '<img src="' . ($msg['sender_id'] == $user_id ? $_SESSION['profile_image'] : $chat_user_id) . '" class="profile-image" alt="' . ($msg['sender_id'] == $user_id ? 'You' : htmlspecialchars($chat_user_id)) . '">';
+    $messageHtml .= '<div class="message">' . htmlspecialchars($msg['message']) . '</div>';
+    $messageHtml .= '</div>';
+}
+
+// Return the generated HTML
+echo $messageHtml;
 ?>

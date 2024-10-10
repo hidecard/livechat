@@ -45,66 +45,127 @@ $messages = $stmt->get_result();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background-color: #f7f7f7; /* Light background for the whole page */
+            background-color: #e5ddd5; /* Telegram-like background color */
+        }
+        .chat-container {
+            position: relative;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .top-bar {
+            background-color: #0088cc;
+            color: #fff;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .top-bar img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+        .top-bar .username {
+            font-size: 18px;
+            font-weight: bold;
         }
         .chat-box {
-            height: 400px;
+            height: 500px;
             overflow-y: scroll;
             padding: 15px;
-            background-color: #fff; /* White background for chat box */
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            margin-top: 10px;
         }
         .message-wrapper {
             display: flex;
             align-items: flex-start;
             margin-bottom: 15px;
         }
+        .message-wrapper.sent {
+            flex-direction: row-reverse;
+        }
         .message {
-            padding: 10px;
-            border-radius: 10px;
-            max-width: 60%;
-            word-wrap: break-word; /* Ensure messages wrap properly */
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
         .received .message {
-            background-color: #e2e3e5; /* Light grey for received messages */
-            margin-right: 10px; /* Space between image and message */
+            background-color: #ffffff;
+            margin-right: 10px;
         }
         .sent .message {
-            background-color: #d1e7dd; /* Light green for sent messages */
-            margin-left: 10px; /* Space between image and message */
+            background-color: #dcf8c6;
+            margin-left: 10px;
         }
         .profile-image {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            object-fit: cover; /* Maintain aspect ratio */
+            object-fit: cover;
+        }
+        .sent .profile-image {
+            margin-left: 10px;
+            margin-right: 0;
         }
         .input-group {
             position: relative;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            border-radius: 30px;
+            padding: 5px;
+        }
+        .input-group .form-control {
+            border: none;
+            box-shadow: none;
+            outline: none;
+        }
+        .input-group .btn {
+            background-color: #0088cc;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            padding: 10px 15px;
         }
     </style>
 </head>
 <body>
     <div class="container mt-5">
-        <h2>Chat with <?php echo htmlspecialchars($chat_user['name']); ?></h2>
-        <div class="chat-box" id="chat-box">
-            <?php while ($msg = $messages->fetch_assoc()): ?>
-                <div class="message-wrapper <?php echo $msg['sender_id'] == $user_id ? 'sent' : 'received'; ?>">
-                    <img src="<?php echo $msg['sender_id'] == $user_id ? $_SESSION['profile_image'] : $chat_user['profile_image']; ?>" class="profile-image" alt="<?php echo $msg['sender_id'] == $user_id ? 'You' : htmlspecialchars($chat_user['name']); ?>">
-                    <div class="message">
-                        <?php echo htmlspecialchars($msg['message']); ?>
+        <div class="chat-container">
+            <!-- Telegram-like Top Bar -->
+            <div class="top-bar">
+                <img src="<?php echo htmlspecialchars($chat_user['profile_image']); ?>" alt="Profile Image">
+                <div class="username"><?php echo htmlspecialchars($chat_user['name']); ?></div>
+            </div>
+
+            <!-- Chat Box -->
+            <div class="chat-box" id="chat-box">
+                <?php while ($msg = $messages->fetch_assoc()): ?>
+                    <div class="message-wrapper <?php echo $msg['sender_id'] == $user_id ? 'sent' : 'received'; ?>">
+                        <img src="<?php echo $msg['sender_id'] == $user_id ? $_SESSION['profile_image'] : $chat_user['profile_image']; ?>" class="profile-image" alt="<?php echo $msg['sender_id'] == $user_id ? 'You' : htmlspecialchars($chat_user['name']); ?>">
+                        <div class="message">
+                            <?php echo htmlspecialchars($msg['message']); ?>
+                        </div>
                     </div>
-                </div>
-            <?php endwhile; ?>
+                <?php endwhile; ?>
+            </div>
         </div>
 
         <form id="chat-form" method="POST" action="send_message.php">
             <input type="hidden" name="receiver_id" value="<?php echo $chat_user_id; ?>">
             <div class="input-group mb-3">
                 <input type="text" name="message" id="message" class="form-control" placeholder="Type a message" required>
-                <button class="btn btn-primary" type="submit">Send</button>
+                <button class="btn" type="submit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+                        <path d="M15.964.686a.75.75 0 0 0-.85-.088L.681 7.151a.75.75 0 0 0-.012 1.348l4.802 2.268 2.268 4.802a.75.75 0 0 0 1.348-.012l6.554-14.433a.75.75 0 0 0-.087-.85z"/>
+                    </svg>
+                </button>
             </div>
         </form>
     </div>
