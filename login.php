@@ -18,7 +18,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Set session variables
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_name'] = $user['name'];
-        header("Location: index.php");
+        // After successful login
+$_SESSION['profile_image'] = $user['profile_image']; // Store profile image in session
+
+        header("Location: chat_list.php");
     } else {
         echo "Invalid email or password.";
     }
