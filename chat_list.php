@@ -2,7 +2,6 @@
 session_start();
 include 'config.php';
 
-// Ensure the user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -10,8 +9,14 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Fetch users for chat with unread message count
-$query = "SELECT u.id, u.name, u.profile_image, 
+// Update user's last_active time
+$update_query = "UPDATE users SET last_active = NOW() WHERE id = ?";
+$stmt = $conn->prepare($update_query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+
+// Fetch users for chat with unread message count and last_active
+$query = "SELECT u.id, u.name, u.profile_image, u.last_active,
                  COUNT(CASE WHEN m.receiver_id = ? AND m.is_read = 0 THEN 1 END) AS unread_count
           FROM users u
           LEFT JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
@@ -19,9 +24,19 @@ $query = "SELECT u.id, u.name, u.profile_image,
           GROUP BY u.id";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("ii", $user_id, $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$users = $result->fetch_all(MYSQLI_ASSOC);
+
+if ($stmt->execute()) {
+    $result = $stmt->get_result();
+    $users = $result->fetch_all(MYSQLI_ASSOC);
+} else {
+    // If the query fails, initialize $users as an empty array
+    $users = [];
+}
+
+// Handle case if users are null
+if (!$users) {
+    $users = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -73,17 +88,40 @@ $users = $result->fetch_all(MYSQLI_ASSOC);
     <div class="container mt-5">
         <h2 class="text-center">Chat List</h2>
         <div class="user-list" id="user-list">
-            <?php foreach ($users as $user): ?>
-                <div class="user" data-user-id="<?php echo $user['id']; ?>">
-                    <img src="<?php echo $user['profile_image']; ?>" alt="<?php echo $user['name']; ?>">
-                    <div>
-                        <strong><?php echo $user['name']; ?></strong>
+            <?php if (!empty($users)): ?>
+                <?php foreach ($users as $user): 
+                    // Calculate the time difference
+                    $now = new DateTime();
+                    $lastActive = new DateTime($user['last_active']);
+                    $interval = $now->diff($lastActive);
+
+                    // Determine status
+                    if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 5) {
+                        $status = "Active now";
+                    } else {
+                        if ($interval->days > 0) {
+                            $status = $interval->days . " days ago";
+                        } elseif ($interval->h > 0) {
+                            $status = $interval->h . " hours ago";
+                        } else {
+                            $status = $interval->i . " minutes ago";
+                        }
+                    }
+                ?>
+                    <div class="user" data-user-id="<?php echo $user['id']; ?>">
+                        <img src="<?php echo $user['profile_image']; ?>" alt="<?php echo $user['name']; ?>">
+                        <div>
+                            <strong><?php echo $user['name']; ?></strong><br>
+                            <small><?php echo $status; ?></small>
+                        </div>
+                        <?php if ($user['unread_count'] > 0): ?>
+                            <div class="notification-badge"><?php echo $user['unread_count']; ?></div>
+                        <?php endif; ?>
                     </div>
-                    <?php if ($user['unread_count'] > 0): ?>
-                        <div class="notification-badge"><?php echo $user['unread_count']; ?></div>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <p>No users found.</p>
+            <?php endif; ?>
         </div>
         <a href="logout.php" class="btn btn-danger">Logout</a>
     </div>
